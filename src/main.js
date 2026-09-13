@@ -291,8 +291,12 @@ function updateShips(dt) {
     toT.y = 0;
     const dist = toT.length();
     const fwd = new THREE.Vector3(0, 0, 1).applyQuaternion(s.quaternion);
-    s.rotation.y = damp(s.rotation.y,
-      s.rotation.y + Math.atan2(toT.x, toT.z), 0.9, dt);
+    // steer: shortest arc to the target heading (unwrapped target makes the
+    // ship spin in place instead of converging — the rate never decays)
+    const wantH = Math.atan2(toT.x, toT.z);
+    let dH = wantH - s.rotation.y;
+    dH = Math.atan2(Math.sin(dH), Math.cos(dH));   // wrap to -π..π
+    s.rotation.y = damp(s.rotation.y, s.rotation.y + dH, 0.9, dt);
     const speed = shipSpeedForNight();
     s.position.addScaledVector(fwd, speed * dt);
     // gentle bob
@@ -302,6 +306,7 @@ function updateShips(dt) {
       // arrived at the channel mark
       if (oil > 0.02) {
         guided++;
+        score += 10;
         toast('SHIP GUIDED THROUGH +10');
       } else {
         lost++;
@@ -664,6 +669,7 @@ function frame() {
 // ---------------------------------------------------------------- the contract
 window.__GAME__ = {
   get pos() { return [player.pos.x, player.pos.z]; },
+  get heading() { return player.heading; },
   get speed() { return Math.round(player.vel.length() * 10) / 10; },
   get score() { return score; },
   get fps() { return Math.round(fpsSm); },

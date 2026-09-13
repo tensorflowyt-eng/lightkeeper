@@ -3,3 +3,4 @@ _playtest/
 _verify/
 *.log
 .DS_Store
+_jam/
