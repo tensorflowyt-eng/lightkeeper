@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#05070c">
+<title>LIGHTKEEPER</title>
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/"
+} }
+</script>
+<link rel="icon" href="data:,">
+<style>
+  :root { --amber:#ffb45a; --cold:#8fb4d8; --red:#d8342a; --dim:#6d7278; }
+  * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html,body { margin:0; padding:0; height:100%; overflow:hidden; background:#04060a;
+               font-family: ui-monospace,"SF Mono",Menlo,Consolas,monospace; color:#e8e4dc; }
+  canvas { display:block; width:100%; height:100%; touch-action:none; }
+  #load { position:fixed; inset:0; z-index:40; background:#05070c; display:flex;
+          flex-direction:column; align-items:center; justify-content:center; gap:18px; }
+  #load h1 { margin:0; font-size:clamp(30px,8vw,58px); letter-spacing:.42em; font-weight:400; color:#d8d2c6; text-indent:.42em; }
+  #load .sub { font-size:11px; letter-spacing:.34em; color:var(--dim); text-indent:.34em; }
+  #bar { width:min(340px,60vw); height:2px; background:#1c2026; overflow:hidden; }
+  #barf { height:100%; width:0%; background:var(--amber); transition:width .18s linear; }
+  #loadmsg { font-size:10px; color:#4f555c; letter-spacing:.12em; height:14px; }
+  .screen { position:fixed; inset:0; z-index:35; display:none; flex-direction:column; align-items:center;
+            justify-content:center; gap:22px; text-align:center;
+            background:radial-gradient(ellipse at 50% 42%, rgba(10,13,18,.55), rgba(3,4,7,.93)); }
+  .screen.on { display:flex; }
+  .screen h2 { margin:0; font-size:clamp(26px,7vw,46px); letter-spacing:.4em; font-weight:400; text-indent:.4em; color:#e6e1d6; }
+  .screen .tag { font-size:11px; letter-spacing:.3em; color:var(--amber); }
+  .screen p { margin:0; font-size:12.5px; line-height:2; color:#8b9097; letter-spacing:.06em; max-width:min(520px,84vw); }
+  .screen p b { color:#c8c4ba; font-weight:400; }
+  .btn { padding:15px 40px; border:1px solid #4a5057; background:rgba(18,20,24,.86); color:#e8e4dc;
+         font:inherit; font-size:13px; letter-spacing:.26em; text-indent:.26em; cursor:pointer; }
+  .btn:hover { border-color:var(--amber); color:var(--amber); }
+  .hint { font-size:10px; letter-spacing:.18em; color:#5a616a; line-height:2.2; }
+  .kbd { display:inline-block; border:1px solid #3a4046; padding:1px 7px; border-radius:2px; font-size:10.5px; color:#aeb4bb; margin:0 2px; }
+  #hud { position:fixed; inset:0; z-index:12; display:none; pointer-events:none; }
+  #hud.on { display:block; }
+  .hlab { font-size:9px; letter-spacing:.3em; color:var(--dim); }
+  #oilbox { position:absolute; left:max(18px,env(safe-area-inset-left)); top:max(16px,env(safe-area-inset-top)); text-shadow:0 2px 6px #000; }
+  #oilbar { width:150px; height:5px; background:rgba(255,255,255,.13); margin-top:5px; }
+  #oilline { height:100%; width:100%; background:var(--amber); transition:width .2s; }
+  #oilbox.low #oilline { background:var(--red); } #oilbox.low .hlab { color:var(--red); }
+  #oilpct { font-size:11px; color:#c8c4ba; margin-top:4px; letter-spacing:.1em; }
+  #nightbox { position:absolute; left:0; right:0; top:max(14px,env(safe-area-inset-top)); text-align:center; text-shadow:0 2px 6px #000; }
+  #night { font-size:12px; letter-spacing:.34em; color:var(--cold); }
+  #score { font-size:26px; letter-spacing:.1em; margin-top:2px; }
+  #score small { font-size:11px; color:#7d838a; letter-spacing:.24em; }
+  #shbox { position:absolute; right:max(18px,env(safe-area-inset-right)); top:max(16px,env(safe-area-inset-top)); text-align:right; text-shadow:0 2px 6px #000; }
+  #shbox .v { font-size:15px; letter-spacing:.1em; margin-top:3px; }
+  #shbox .v.g { color:#9fd6a8; } #shbox .v.l { color:var(--red); }
+  #refuel { position:absolute; left:0; right:0; bottom:22%; text-align:center; font-size:12px; letter-spacing:.3em;
+            color:var(--amber); opacity:0; text-shadow:0 2px 8px #000; transition:opacity .3s; }
+  #refuel.on { opacity:1; }
+  #toast { position:absolute; left:0; right:0; top:30%; text-align:center; font-size:13px; letter-spacing:.26em;
+           color:var(--amber); opacity:0; text-shadow:0 2px 10px #000; transition:opacity .45s; }
+  #hints { position:absolute; right:max(16px,env(safe-area-inset-right)); bottom:max(14px,env(safe-area-inset-bottom)); text-align:right; }
+  #restartb { position:absolute; right:max(16px,env(safe-area-inset-right)); bottom:max(46px,calc(env(safe-area-inset-bottom) + 46px));
+              border:1px solid #3a4046; background:rgba(14,16,20,.7); color:#8b9097; font:inherit; font-size:9.5px;
+              letter-spacing:.22em; padding:6px 12px; cursor:pointer; pointer-events:auto; }
+  #restartb:hover { border-color:var(--amber); color:var(--amber); }
+  #touch { position:fixed; inset:0; z-index:14; display:none; }
+  #touch.on { display:block; }
+  .tpad { position:absolute; }
+  #stick { left:0; bottom:0; width:44%; height:56%; }
+  #stickbase { position:absolute; width:112px; height:112px; margin:-56px 0 0 -56px; border-radius:50%;
+               border:1.5px solid rgba(232,228,220,.26); opacity:0; }
+  #sticknub { position:absolute; width:50px; height:50px; margin:-25px 0 0 -25px; border-radius:50%;
+              background:rgba(232,228,220,.18); border:1.5px solid rgba(232,228,220,.42); opacity:0; }
+  #look { right:0; top:0; width:56%; height:100%; }
+  #horn { position:absolute; right:max(20px,env(safe-area-inset-right)); bottom:24%; width:74px; height:74px; border-radius:50%;
+          border:1.5px solid rgba(232,228,220,.34); background:rgba(16,18,20,.4); display:flex; align-items:center;
+          justify-content:center; font-size:10px; letter-spacing:.14em; color:#d6d2ca; user-select:none; }
+  #horn.dn { background:rgba(255,180,90,.3); border-color:var(--amber); }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="load">
+  <h1>LIGHTKEEPER</h1>
+  <div class="sub">THE CHANNEL AT NIGHT</div>
+  <div id="bar"><div id="barf"></div></div>
+  <div id="loadmsg">initialising</div>
+</div>
+
+<div class="screen" id="start">
+  <h2>LIGHTKEEPER</h2>
+  <div class="tag">THE LAMP MUST NOT DIE</div>
+  <p>The lighthouse lamp is running dry and the night ships are coming in.<br>
+     <b>Sail to the dock to refill the light.</b><br>
+     <b>Keep the beam turning while they cross the reef.</b></p>
+  <button class="btn" id="startb">KEEP WATCH</button>
+  <div class="hint">
+    <span class="kbd">W</span><span class="kbd">A</span><span class="kbd">S</span><span class="kbd">D</span> / ARROWS steer &middot; <span class="kbd">SPACE</span> horn &middot; <span class="kbd">M</span> mute &middot; <span class="kbd">R</span> restart<br>
+    TOUCH: left stick steers &middot; right side looks around &middot; HORN bottom right
+  </div>
+</div>
+
+<div id="hud">
+  <div id="oilbox"><div class="hlab">LAMP OIL</div><div id="oilbar"><div id="oilline"></div></div><div id="oilpct">100%</div></div>
+  <div id="nightbox"><div id="night">NIGHT 1</div><div id="score">0 <small>GUIDED LIGHT</small></div></div>
+  <div id="shbox"><div class="hlab">SHIPS</div><div class="v g" id="sguided">0 GUIDED</div><div class="v l" id="slost">0 LOST</div></div>
+  <div id="refuel">REFUILLING THE LIGHT</div>
+  <div id="toast"></div>
+  <div id="hints"><span class="kbd">W</span><span class="kbd">A</span><span class="kbd">S</span><span class="kbd">D</span> steer &middot; <span class="kbd">SPACE</span> horn &middot; <span class="kbd">M</span> mute</div>
+  <button id="restartb">RESTART &middot; R</button>
+</div>
+
+<div id="touch">
+  <div class="tpad" id="stick"><div id="stickbase"></div><div id="sticknub"></div></div>
+  <div class="tpad" id="look"></div>
+  <div id="horn">HORN</div>
+</div>
+
+<script type="module" src="./src/main.js"></script>
+</body>
+</html>
